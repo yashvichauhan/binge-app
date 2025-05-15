@@ -1,0 +1,301 @@
+﻿
+@{
+    ViewData["Title"] = "Details";
+}
+
+@model MovieDetailsViewModel
+
+<h2>@Model.Movie.Title</h2>
+
+<div>
+    <h4>Movie Details</h4>
+    <table class="table">
+        <tr>
+            <td><strong>Title:</strong></td>
+            <td>@Model.Movie.Title</td>
+        </tr>
+        <tr>
+            <td><strong>Genre:</strong></td>
+            <td>@Model.Movie.Genre</td>
+        </tr>
+        <tr>
+            <td><strong>Director:</strong></td>
+            <td>@Model.Movie.Director</td>
+        </tr>
+        <tr>
+            <td><strong>Release Date:</strong></td>
+            <td>@Model.Movie.ReleaseTime.ToShortDateString()</td>
+        </tr>
+        <tr>
+            <td><strong>Rating:</strong></td>
+            <td>@Model.Movie.Rating</td>
+        </tr>
+    </table>
+</div>
+
+<div>
+    <h4>Watch Movie</h4>
+    <video width="640" height="360" controls>
+        <source src="@Model.Movie.S3Url" type="video/webm">
+        Your browser does not support the video tag.
+    </video>
+</div>
+
+<div class="mt-3">
+    <a href="javascript:void(0);" onclick="downloadMovie('@Model.Movie.MovieId')" class="btn btn-primary">Download Movie</a>
+</div>
+
+<hr />
+
+<div>
+    <h4>Rate this Movie</h4>
+    <form asp-action="AddRating" method="post">
+        <input type="hidden" name="movieId" value="@Model.Movie.MovieId" />
+        <label>Rating:</label>
+        <input type="number" name="rating" min="1" max="10" required class="form-control" />
+        <button type="submit" class="btn btn-success mt-2">Submit Rating</button>
+    </form>
+</div>
+
+<hr />
+
+<div>
+    <h4>Add Comment</h4>
+    <div class="mt-3">
+        <textarea id="commentContent" placeholder="Write your comment here..." rows="3" class="form-control"></textarea>
+        <button onclick="addComment('@Model.Movie.MovieId')" class="btn btn-primary mt-2">Submit</button>
+    </div>
+</div>
+
+<hr />
+
+<div>
+    <h4 id="commentSection">Comments</h4>
+    @if (Model.Comments.Any())
+    {
+        <table class="table" >
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Comment</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="commentsTable">
+                @foreach (var comment in Model.Comments)
+                {
+                    <tr data-comment-id="@comment.CommentId">
+                        <td>@comment.UserId</td>
+                        <td class="comment-content">@comment.Content</td>
+                        <td>@comment.CreatedAt.ToString("g")</td>
+                        <td>
+                            @if (comment.UserId == User.Identity.Name && comment.CreatedAt > DateTime.Now.AddHours(-24))
+                            {
+                                <div class="edit-form" style="display: none;">
+                                    <textarea class="edit-input form-control" rows="2">@comment.Content</textarea>
+                                    <button onclick="submitEdit('@comment.CommentId')" class="btn btn-success mt-2">Save</button>
+                                    <button onclick="cancelEdit('@comment.CommentId')" class="btn btn-secondary mt-2">Cancel</button>
+                                </div>
+                                <button onclick="showEditForm('@comment.CommentId')" class="btn btn-warning">Edit</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No comments yet. Be the first to comment!</p>
+    }
+
+    <a asp-action="Index" class="btn btn-secondary mt-3">Back to Movies List</a>
+</div>
+
+<script>
+    function downloadMovie(movieId) {
+        fetch(`/Movies/Download?id=${movieId}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    alert("Failed to download the movie.");
+                    return;
+                }
+                return response.blob(); // Convert response to blob
+            })
+            .then(blob => {
+                if (blob) {
+                    const downloadUrl = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = downloadUrl;
+                    a.download = "movie.mp4"; // Use dynamic movie title if needed
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(downloadUrl);
+                }
+            })
+            .catch(error => {
+                console.error("Download error:", error);
+                alert("Error downloading movie.");
+            });
+    }
+
+    function addComment(movieId) {
+        const commentContent = document.getElementById("commentContent").value;
+
+        if (!commentContent) {
+            alert("Comment content cannot be empty.");
+            return;
+        }
+
+        fetch(`/Movies/AddComment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                MovieId: movieId,
+                Content: commentContent
+            })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Failed to add comment.");
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Clear the input field
+                    document.getElementById("commentContent").value = '';
+
+                    // Dynamically add the comment to the comment list
+                    const commentsTable = document.getElementById("commentsTable");
+                    const commentSection = document.getElementById("commentSection");
+
+                    // If commentsTable doesn't exist, create it
+                    if (!commentsTable) {
+                        const newTable = document.createElement("table");
+                        newTable.className = "table";
+                        newTable.innerHTML = `
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Comment</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="commentsTable"></tbody>
+                        `;
+
+                        // Insert the new table after the "Comments" heading
+                        commentSection.insertAdjacentElement('afterend', newTable);
+                    }
+
+                    const commentsTableBody = document.getElementById("commentsTable");
+
+                    const newRow = document.createElement("tr");
+                    newRow.innerHTML = `
+                        <td>${data.userId}</td>
+                        <td>${data.content}</td>
+                        <td>${new Date(data.createdAt).toLocaleString()}</td>
+                        <td>
+                            <form method="post" class="d-inline">
+                                <input type="hidden" name="commentId" value="${data.commentId}" />
+                                <textarea name="newText" required>${data.content}</textarea>
+                                <button type="submit" class="btn btn-warning">Edit</button>
+                            </form>
+                        </td>
+                    `;
+
+                    commentsTableBody.appendChild(newRow);
+                } else {
+                    alert("Failed to add comment.");
+                }
+            })
+            .catch(error => {
+                console.error("Error adding comment:", error);
+                alert("An error occurred while adding the comment.");
+            });
+    }
+
+    function showEditForm(commentId) {
+        const row = document.querySelector(`[data-comment-id='${commentId}']`);
+        const contentElement = row.querySelector(".comment-content");
+        const editForm = row.querySelector(".edit-form");
+        const editButton = row.querySelector(".btn-warning");
+
+        // Toggle visibility
+        contentElement.style.display = "none";
+        editForm.style.display = "block";
+        editButton.style.display = "none";  // Hide the edit button when in edit mode
+    }
+
+    function submitEdit(commentId) {
+        const row = document.querySelector(`[data-comment-id='${commentId}']`);
+        const editInput = row.querySelector(".edit-input").value;
+
+        if (!editInput.trim()) {
+            alert("Comment content cannot be empty.");
+            return;
+        }
+
+        fetch(`/Movies/EditComment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                CommentId: commentId, 
+                Content: editInput,
+            })
+        })
+            .then(response => {
+                if (!response.ok) throw new Error("Failed to edit comment.");
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const contentElement = row.querySelector(".comment-content");
+                    const editForm = row.querySelector(".edit-form");
+                    const editButton = row.querySelector(".btn-warning");
+
+                    // Update content and toggle visibility
+                    contentElement.textContent = editInput;
+                    contentElement.style.display = "block";
+                    editForm.style.display = "none";
+                    editButton.style.display = "inline-block";  // Show the edit button again
+                } else {
+                    alert("Failed to edit comment.");
+                }
+            })
+            .catch(error => {
+                console.error("Error editing comment:", error);
+                alert("Error updating comment.");
+            });
+    }
+
+    // For the cancel button, make sure it hides the form and restores the original view
+    function cancelEdit(commentId) {
+        const row = document.querySelector(`[data-comment-id='${commentId}']`);
+        const contentElement = row.querySelector(".comment-content");
+        const editForm = row.querySelector(".edit-form");
+        const editButton = row.querySelector(".btn-warning");
+
+        // Toggle visibility
+        contentElement.style.display = "revert";  // Show the original comment
+        editForm.style.display = "none";  // Hide the edit form
+        editButton.style.display = "inline-block";  // Show the edit button again
+    }
+
+    
+</script>
+
+

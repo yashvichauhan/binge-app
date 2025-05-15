@@ -1,0 +1,38 @@
+﻿
+@{
+    ViewData["Title"] = "MoviesByGenre";
+}
+
+@model IEnumerable<Movie>
+
+<h2>Movies by Genre</h2>
+
+<!-- Button to navigate back to all movies -->
+
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Genre</th>
+            <th>Rating</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var movie in Model)
+        {
+            <tr id="movie-@movie.MovieId">
+                <td>@movie.Title</td>
+                <td>@movie.Genre</td>
+                <td>@movie.Rating</td>
+            </tr>
+        }
+    </tbody>
+</table>
+<br />
+<button class="btn btn-secondary mb-3" onclick="window.location.href='/Movies/Index'">Back to All Movies</button>
+
+
+
+

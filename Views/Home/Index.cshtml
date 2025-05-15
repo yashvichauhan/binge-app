@@ -1,0 +1,25 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+<div class="text-center my-5">
+    <h1 class="display-4 fw-bold">Welcome to Binge Watch!</h1>
+    <p class="lead mt-3">Get ready for an amazing movie experience!</p>
+    <a asp-area="" asp-controller="Movies" asp-action="Index"
+       class="btn btn-lg btn-primary mt-4"
+       style="font-size: 1.5rem; padding: 0.75rem 1.5rem;">
+        Start Watching Movies Now!
+    </a>
+</div>
+
+<style>
+    /* Ensures the footer stays at the bottom of the page */
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    main {
+        flex: 1;
+    }
+</style>
+

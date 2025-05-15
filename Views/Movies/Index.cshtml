@@ -1,0 +1,102 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@model IEnumerable<Movie>
+
+@{
+    ViewData["Title"] = "Movies List";
+}
+
+<h1>All Movies</h1>
+<br/>
+
+<button class="btn btn-primary" onclick="window.location.href='/Movies/AddMovie'">Add Movie</button>
+<button class="btn btn-secondary" onclick="window.location.href='/Movies/HighRated'">View Movies with Rating > 7</button>
+
+<!-- Genre Selector -->
+<div class="genre-filter">
+    <label for="genreSelect" class="form-label">Select Genre:</label>
+    <select id="genreSelect" class="form-control">
+        <option value="">--Select Genre--</option>
+        <option value="Thriller">Thriller</option>
+        <option value="Nature">Nature</option>
+        <option value="Comedy">Comedy</option>
+        <option value="Action">Action</option>
+        <option value="Drama">Drama</option>
+        <!-- Add more genres as needed -->
+    </select>
+    <button class="btn btn-info" onclick="redirectToGenrePage()">View Movies in Genre</button>
+</div>
+<br />
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Genre</th>
+            <th>Rating</th>
+            <th>Release Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var movie in Model)
+        {
+            <tr id="movie-@movie.MovieId">
+                <td>@movie.Title</td>
+                <td>@movie.Genre</td>
+                <td>@movie.Rating</td>
+                <td>@movie.ReleaseTime.ToShortDateString()</td>
+                <td>
+                    <button class="btn btn-info" onclick="window.location.href='/Movies/Details/@movie.MovieId'">View</button>
+                    @if (movie.UploadedByUserId == User.Identity.Name)
+                    {
+                        <button class="btn btn-primary" onclick="window.location.href='/Movies/EditMovie/@movie.MovieId'">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteMovie('@movie.MovieId')">Delete</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+<script>
+    function deleteMovie(id) {
+        if (confirm("Are you sure you want to delete this movie?")) {
+            fetch(`/Movies/DeleteMovie`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ MovieId: id })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Failed to delete movie.", id);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Remove the movie row from the DOM
+                        document.getElementById(`movie-${id}`).remove();
+                    } else {
+                        alert("Failed to delete movie.2");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error deleting movie:", error);
+                    alert("Error deleting movie.3");
+                });
+        }
+    }
+    function redirectToGenrePage() {
+        const genre = document.getElementById("genreSelect").value;
+        if (genre) {
+            window.location.href = `/Movies/MoviesByGenre?genre=${genre}`;
+        } else {
+            alert("Please select a genre.");
+        }
+    }
+
+</script>
+
